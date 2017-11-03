@@ -43,7 +43,7 @@ func TestWgetErrors(t *testing.T) {
 	conf.MaxErrors = 10
 	conf.NoBackoff = false
 
-	for i := 1; i <= maxReqsBefore503*1.5; i++ {
+	for i := 1; i <= maxReqsBefore503+10; i++ {
 		conf.Url = fmt.Sprintf("%s%d", baseUrl, i)
 		got := Wget(conf)
 		want := "<description>"
