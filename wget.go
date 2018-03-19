@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -63,7 +64,8 @@ func Wget(conf Config) string {
 	}
 
 	// output the response to file, instead of returning it
-	os.MkdirAll(conf.Outfile, os.ModePerm)
+	dir, _ := filepath.Split(conf.Outfile)
+	os.MkdirAll(dir, os.ModePerm)
 	file, err := os.Create(conf.Outfile)
 	if err != nil {
 		log.Fatalln(err)
