@@ -3,7 +3,6 @@ package utils
 import (
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,7 +20,7 @@ type Config struct {
 	DontRetryOnBadStatus bool   // if HTTP status code is not 200, don't retry
 }
 
-func Wget(conf Config) string {
+func Wget(conf Config) (string, error) {
 	client := &http.Client{}
 	startingBackoff := 100 * time.Millisecond
 	if conf.NoBackoff {
@@ -30,7 +29,7 @@ func Wget(conf Config) string {
 
 	req, err := http.NewRequest("GET", conf.Url, nil)
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
 	}
 
 	if conf.Spoof {
@@ -48,7 +47,7 @@ func Wget(conf Config) string {
 		}
 		errs++
 		if errs > conf.MaxErrors {
-			log.Fatalln(err)
+			return "", err
 		}
 		startingBackoff *= 2 // exponential backoff
 		time.Sleep(startingBackoff)
@@ -58,9 +57,9 @@ func Wget(conf Config) string {
 	if conf.Outfile == "" {
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Fatalln(err)
+			return "", err
 		}
-		return string(body)
+		return string(body), nil
 	}
 
 	// output the response to file, instead of returning it
@@ -68,13 +67,13 @@ func Wget(conf Config) string {
 	os.MkdirAll(dir, os.ModePerm)
 	file, err := os.Create(conf.Outfile)
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
 	}
 
 	_, err = io.Copy(file, resp.Body)
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
 	}
 	file.Close()
-	return ""
+	return "", nil
 }
