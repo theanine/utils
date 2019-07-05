@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestWgetBasic(t *testing.T) {
@@ -57,7 +58,82 @@ func TestWgetErrors(t *testing.T) {
 		}
 		want := "<description>"
 		if !strings.Contains(got, want) {
-			t.Errorf("got %s; want %s", want)
+			t.Errorf("got %s; want %s", got, want)
 		}
+	}
+}
+
+func TestCache(t *testing.T) {
+	now := time.Now()
+
+	cache = make(map[string]cached)
+	cache["www.google.com"] = cached{now, "I'm feeling lucky"}
+	if err := saveCache("www.yahoo.com", "I'm feeling unlucky", 0); err != nil {
+		t.Errorf("error: %s", err)
+	}
+
+	cache = make(map[string]cached)
+	if err := loadCache(); err != nil {
+		t.Errorf("error: %s", err)
+	}
+
+	if v, ok := cache["www.google.com"]; ok {
+		{
+			got := v.Expiry
+			want := now
+			if !got.Equal(want) {
+				t.Errorf("got %s; want %s", got.String(), want.String())
+			}
+		}
+		{
+			got := v.Content
+			want := "I'm feeling lucky"
+			if got != want {
+				t.Errorf("got %s; want %s", got, want)
+			}
+		}
+	} else {
+		t.Errorf("got %v; want %s", nil, "www.google.com")
+	}
+
+	if v, ok := cache["www.yahoo.com"]; ok {
+		{
+			got := v.Content
+			want := "I'm feeling unlucky"
+			if got != want {
+				t.Errorf("got %s; want %s", got, want)
+			}
+		}
+	} else {
+		t.Errorf("got %v; want %s", nil, "www.yahoo.com")
+	}
+}
+
+func TestExpiry(t *testing.T) {
+	var conf Config
+	conf.Url = "www.google.com"
+
+	cache = make(map[string]cached)
+	if err := saveCache(conf.Url, "I'm feeling lucky", time.Second*time.Duration(1)); err != nil {
+		t.Errorf("error: %s", err)
+	}
+
+	cache = make(map[string]cached)
+	if err := loadCache(); err != nil {
+		t.Errorf("error: %s", err)
+	}
+
+	got := cacheGet(conf)
+	want := "I'm feeling lucky"
+	if got != want {
+		t.Errorf("got %s; want %s", got, want)
+	}
+
+	time.Sleep(time.Second * time.Duration(1))
+
+	got = cacheGet(conf)
+	want = ""
+	if got != want {
+		t.Errorf("got %s; want %s", got, want)
 	}
 }
