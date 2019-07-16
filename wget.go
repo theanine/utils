@@ -60,7 +60,7 @@ func saveCache(url string, body string, d time.Duration) error {
 	return nil
 }
 
-func remoteGet(conf Config) (string, error) {
+func remoteGet(conf Config) (string, int, error) {
 	client := &http.Client{}
 	startingBackoff := 100 * time.Millisecond
 	if conf.NoBackoff {
@@ -69,7 +69,7 @@ func remoteGet(conf Config) (string, error) {
 
 	req, err := http.NewRequest("GET", conf.Url, nil)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
 	if conf.Spoof {
@@ -77,9 +77,13 @@ func remoteGet(conf Config) (string, error) {
 	}
 
 	var resp *http.Response
+	code := 0
 	var errs int
 	for {
 		resp, err = client.Do(req)
+		if resp != nil {
+			code = resp.StatusCode
+		}
 		if err == nil && (resp.StatusCode == 200 || conf.DontRetryOnBadStatus) {
 			// we got the response, and it's either a 200 or we don't care what the status code is
 			defer resp.Body.Close()
@@ -87,7 +91,7 @@ func remoteGet(conf Config) (string, error) {
 		}
 		errs++
 		if errs > conf.MaxErrors {
-			return "", err
+			return "", code, err
 		}
 		startingBackoff *= 2 // exponential backoff
 		time.Sleep(startingBackoff)
@@ -95,7 +99,7 @@ func remoteGet(conf Config) (string, error) {
 
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return "", code, err
 	}
 	body := string(bytes)
 
@@ -103,7 +107,7 @@ func remoteGet(conf Config) (string, error) {
 	if conf.Cache > 0 {
 		saveCache(conf.Url, body, conf.Cache)
 	}
-	return body, nil
+	return body, code, nil
 }
 
 func cacheGet(conf Config) string {
@@ -119,7 +123,7 @@ func cacheGet(conf Config) string {
 	return cached
 }
 
-func Wget(conf Config) (string, error) {
+func Wget(conf Config) (string, int, error) {
 	if cache == nil {
 		loadCache()
 	}
@@ -130,15 +134,16 @@ func Wget(conf Config) (string, error) {
 	}
 
 	var err error
+	code := 200
 	if body == "" {
-		if body, err = remoteGet(conf); err != nil {
-			return "", err
+		if body, code, err = remoteGet(conf); err != nil {
+			return "", code, err
 		}
 	}
 
 	// return the response
 	if conf.Outfile == "" {
-		return body, nil
+		return body, code, nil
 	}
 
 	// output the response to file, instead of returning it
@@ -146,9 +151,9 @@ func Wget(conf Config) (string, error) {
 	os.MkdirAll(dir, os.ModePerm)
 	file, err := os.Create(conf.Outfile)
 	if err != nil {
-		return "", err
+		return "", code, err
 	}
 	_, err = file.WriteString(body)
 	file.Close()
-	return "", err
+	return "", code, err
 }

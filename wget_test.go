@@ -14,13 +14,16 @@ func TestWgetBasic(t *testing.T) {
 	conf.MaxErrors = 0
 	conf.NoBackoff = false
 
-	got, err := Wget(conf)
+	got, code, err := Wget(conf)
 	if err != nil {
 		t.Errorf("error: %s", err)
 	}
 	want := "I'm Feeling Lucky"
 	if !strings.Contains(got, want) {
 		t.Errorf("got %s; want %s", got, want)
+	}
+	if code != 200 {
+		t.Errorf("got %d; want %d", code, 200)
 	}
 }
 
@@ -31,13 +34,16 @@ func TestWgetSpoof(t *testing.T) {
 	conf.MaxErrors = 0
 	conf.NoBackoff = false
 
-	got, err := Wget(conf)
+	got, code, err := Wget(conf)
 	if err != nil {
 		t.Errorf("error: %s", err)
 	}
 	want := "I'm Feeling Lucky"
 	if !strings.Contains(got, want) {
 		t.Errorf("got %s; want %s", got, want)
+	}
+	if code != 200 {
+		t.Errorf("got %d; want %d", code, 200)
 	}
 }
 
@@ -52,7 +58,7 @@ func TestWgetErrors(t *testing.T) {
 
 	for i := 1; i <= maxReqsBefore503+10; i++ {
 		conf.Url = fmt.Sprintf("%s%d", baseUrl, i)
-		got, err := Wget(conf)
+		got, code, err := Wget(conf)
 		if err != nil {
 			t.Errorf("error: %s", err)
 		}
@@ -60,6 +66,29 @@ func TestWgetErrors(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("got %s; want %s", got, want)
 		}
+		if code != 200 {
+			t.Errorf("got %d; want %d", code, 200)
+		}
+	}
+}
+
+func TestWgetCode(t *testing.T) {
+	var conf Config
+	conf.Url = "https://httpstat.us/503"
+	_, code, err := Wget(conf)
+	if err != nil {
+		t.Errorf("error: %s", err)
+	}
+	if code != 503 {
+		t.Errorf("got %d; want %d", code, 503)
+	}
+	conf.Url = "https://httpstat.us/202"
+	_, code, err = Wget(conf)
+	if err != nil {
+		t.Errorf("error: %s", err)
+	}
+	if code != 202 {
+		t.Errorf("got %d; want %d", code, 202)
 	}
 }
 
