@@ -120,7 +120,7 @@ func remoteGet(conf Config) (string, int, error) {
 	body := string(bytes)
 
 	// save response to cache
-	if conf.Cache > 0 {
+	if conf.Cache > 0 && code == 200 {
 		saveCache(conf.Url, body, conf.Cache)
 	}
 	return body, code, nil
