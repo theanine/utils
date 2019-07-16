@@ -60,6 +60,22 @@ func saveCache(url string, body string, d time.Duration) error {
 	return nil
 }
 
+func invalidateCache(url string) error {
+	delete(cache, url)
+
+	encodeFile, err := os.Create(".cached")
+	if err != nil {
+		return err
+	}
+
+	encoder := gob.NewEncoder(encodeFile)
+	if err := encoder.Encode(cache); err != nil {
+		return err
+	}
+	encodeFile.Close()
+	return nil
+}
+
 func remoteGet(conf Config) (string, int, error) {
 	client := &http.Client{}
 	startingBackoff := 100 * time.Millisecond
@@ -124,6 +140,10 @@ func cacheGet(conf Config) string {
 }
 
 func Wget(conf Config) (string, int, error) {
+	if conf.Force {
+		invalidateCache(conf.Url)
+	}
+
 	if cache == nil {
 		loadCache()
 	}
