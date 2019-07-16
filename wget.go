@@ -90,7 +90,7 @@ func remoteGet(conf Config) (string, int, error) {
 			break
 		}
 		errs++
-		if errs > conf.MaxErrors {
+		if errs >= conf.MaxErrors {
 			return "", code, err
 		}
 		startingBackoff *= 2 // exponential backoff
