@@ -100,10 +100,22 @@ func remoteGet(conf Config) (string, int, error) {
 		if resp != nil {
 			code = resp.StatusCode
 		}
-		if err == nil && (resp.StatusCode == 200 || conf.DontRetryOnBadStatus) {
+		if err == nil && (code == 200 || conf.DontRetryOnBadStatus) {
 			// we got the response, and it's either a 200 or we don't care what the status code is
 			defer resp.Body.Close()
 			break
+		}
+		if code == 429 {
+			// Handle the 429 status code
+			retryAfter := resp.Header.Get("Retry-After")
+			retryAfterDuration, parseErr := time.ParseDuration(retryAfter + "s")
+			if parseErr != nil {
+				// Default backoff if parsing fails
+				// retryAfterDuration = startingBackoff
+				break
+			}
+			time.Sleep(retryAfterDuration)
+			continue
 		}
 		errs++
 		if errs >= conf.MaxErrors {
